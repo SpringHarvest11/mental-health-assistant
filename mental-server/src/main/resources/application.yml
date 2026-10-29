@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: dev
+  main:
+    allow-circular-references: true
+  #MySQL数据库连接（database:mental_health_assistant）
+  datasource:
+    druid:
+      driver-class-name: ${nie.datasource.driver-class-name}
+      url: jdbc:mysql://${nie.datasource.host}:${nie.datasource.port}/${nie.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+      username: ${nie.datasource.username}
+      password: ${nie.datasource.password}
+
+
