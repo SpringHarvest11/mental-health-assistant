@@ -6,12 +6,28 @@ spring:
     active: dev
   main:
     allow-circular-references: true
-  #MySQL数据库连接（database:mental_health_assistant）
+  #MySQL数据库连接（database:mental_health_assistant），具体值由 profile 文件提供
   datasource:
-    druid:
-      driver-class-name: ${nie.datasource.driver-class-name}
-      url: jdbc:mysql://${nie.datasource.host}:${nie.datasource.port}/${nie.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
-      username: ${nie.datasource.username}
-      password: ${nie.datasource.password}
+    driver-class-name: ${nie.datasource.driver-class-name}
+    url: jdbc:mysql://${nie.datasource.host}:${nie.datasource.port}/${nie.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${nie.datasource.username}
+    password: ${nie.datasource.password}
+    #HikariCP 连接池（Spring Boot 默认连接池）
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
+mybatis:
+  #开启驼峰命名映射
+  configuration:
+    map-underscore-to-camel-case: true
+  #xml文件路径映射
+  mapper-locations: classpath:mapper/**/*.xml
+
+jwt:
+  secret: ${nie.jwt.secret}
+  expiration: ${nie.jwt.expiration}
 
