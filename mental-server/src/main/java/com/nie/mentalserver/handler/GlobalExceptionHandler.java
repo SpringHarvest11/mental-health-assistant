@@ -59,12 +59,12 @@ public class GlobalExceptionHandler {
         return Result.error(e.getCode(),e.getMessage(),null);
     }
 
-    /**
-     *兜底的全局异常处理
-     */
-    @ExceptionHandler(Exception.class)
-    public Result<String> handleException( Exception e){
-        log.info("系统发生未知错误", e);
-        return Result.error(ResultCode.SYSTEM_ERROR.getCode(),ResultCode.SYSTEM_ERROR.getMsg(),null);
-    }
+//    /**
+//     *兜底的全局异常处理
+//     */
+//    @ExceptionHandler(Exception.class)
+//    public Result<String> handleException( Exception e){
+//        log.info("系统发生未知错误", e);
+//        return Result.error(ResultCode.SYSTEM_ERROR.getCode(),ResultCode.SYSTEM_ERROR.getMsg(),null);
+//    }
 }

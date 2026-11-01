@@ -1,6 +1,7 @@
 package com.nie.mentalserver.controller;
 
 import com.nie.mental.common.result.Result;
+import com.nie.mentalpojo.dto.UserEnrollDTO;
 import com.nie.mentalpojo.dto.UserLoginDTO;
 import com.nie.mentalpojo.vo.UserLoginVO;
 import com.nie.mentalserver.service.UserService;
@@ -32,4 +33,18 @@ public class UserController {
         UserLoginVO userLoginVO = userService.login(userLoginDTO);
         return Result.success(userLoginVO);
     }
+
+    /**
+     * 用户注册
+     * @param userEnrollDTO
+     * @return Result<>
+     */
+    @Operation(summary = "用户注册")
+    @PostMapping("/add")
+    public Result enroll(@Valid @RequestBody UserEnrollDTO userEnrollDTO){
+        log.info("注册参数：{}",userEnrollDTO);
+        userService.enroll(userEnrollDTO);
+        return Result.success();
+    }
+
 }
