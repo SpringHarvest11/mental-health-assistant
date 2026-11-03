@@ -1,5 +1,7 @@
 package com.nie.mentalserver.config;
 
+import com.nie.mental.common.utils.JwtUtils;
+import com.nie.mentalserver.filter.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 
 import org.springframework.context.annotation.Configuration;
@@ -9,33 +11,26 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.util.AntPathMatcher;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final AntPathMatcher antPathMatcher = new AntPathMatcher();
     private  static final String[] PUBLIC_PATHS = {
             "/",
-            "/api/test",
             "/api/user/login",
-            "/api/user/add"
+            "/api/user/add",
+            "/v3/api-docs",
+            "/swagger-ui/**"
     };
 
-    public static Boolean isPublicPATH(String requestUri) {
-        for (String publicPath : PUBLIC_PATHS) {
-            if (antPathMatcher.match(publicPath, requestUri)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtUtils jwtUtils,
+                                                   ObjectMapper objectMapper) throws Exception {
         http
                 // 禁用CSRF保护 （API服务通常不需要）
                 .csrf(AbstractHttpConfigurer::disable)
@@ -47,7 +42,9 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         // 其他请求都需要认证
                         .anyRequest().authenticated()
-                );
+                )
+        // 添加JWT认证过滤器
+        .addFilterBefore(new JwtAuthenticationFilter(jwtUtils, objectMapper), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

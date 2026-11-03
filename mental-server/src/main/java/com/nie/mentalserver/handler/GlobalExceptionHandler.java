@@ -3,14 +3,17 @@ package com.nie.mentalserver.handler;
 import com.nie.mental.common.exception.BusinessException;
 import com.nie.mental.common.result.Result;
 import com.nie.mental.common.result.ResultCode;
+import com.nie.mental.common.utils.JwtUtils;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.stream.Collectors;
 
@@ -21,6 +24,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @Autowired
+    private JwtUtils jwtUtils;
+    @Autowired
+    private ObjectMapper objectMapper;
     /**
      *处理 @RequestBody 参数校验异常
      */
@@ -59,12 +66,12 @@ public class GlobalExceptionHandler {
         return Result.error(e.getCode(),e.getMessage(),null);
     }
 
-//    /**
-//     *兜底的全局异常处理
-//     */
-//    @ExceptionHandler(Exception.class)
-//    public Result<String> handleException( Exception e){
-//        log.info("系统发生未知错误", e);
-//        return Result.error(ResultCode.SYSTEM_ERROR.getCode(),ResultCode.SYSTEM_ERROR.getMsg(),null);
-//    }
+    /**
+     *兜底的全局异常处理
+     */
+    @ExceptionHandler(Exception.class)
+    public Result<String> handleException( Exception e){
+        log.info("系统发生未知错误", e);
+        return Result.error(ResultCode.SYSTEM_ERROR.getCode(),ResultCode.SYSTEM_ERROR.getMsg(),null);
+    }
 }
