@@ -3,6 +3,7 @@ package com.nie.mentalserver.filter;
 import com.nie.mental.common.result.Result;
 import com.nie.mental.common.result.ResultCode;
 import com.nie.mental.common.utils.JwtUtils;
+import com.nie.mentalserver.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -28,12 +29,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final ObjectMapper objectMapper;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private final AntPathMatcher antPathMatcher =new AntPathMatcher();
 
-    public JwtAuthenticationFilter(JwtUtils jwtUtils, ObjectMapper objectMapper) {
+    public JwtAuthenticationFilter(JwtUtils jwtUtils, ObjectMapper objectMapper, TokenBlacklistService tokenBlacklistService) {
         this.jwtUtils = jwtUtils;
         this.objectMapper = objectMapper;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     private static final List<String> PUBLIC_PATHS = Arrays.asList(
@@ -75,6 +78,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Integer userId = Integer.valueOf(claims.get("id").toString());
             String username = claims.get("username", String.class);
             Integer roleType = claims.get("userType", Integer.class);
+
+            String jti = claims.getId();
+            if (tokenBlacklistService.isBlacklisted(jti)) {
+                writeError(response, "登录状态已失效，请重新登录");
+                return;
+            }
 
             //构建 Spring Security 的权限对象（ROLE_)
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(

@@ -2,6 +2,7 @@ package com.nie.mentalserver.config;
 
 import com.nie.mental.common.utils.JwtUtils;
 import com.nie.mentalserver.filter.JwtAuthenticationFilter;
+import com.nie.mentalserver.service.TokenBlacklistService;
 import org.springframework.context.annotation.Bean;
 
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +31,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtUtils jwtUtils,
-                                                   ObjectMapper objectMapper) throws Exception {
+                                                   ObjectMapper objectMapper,
+                                                   TokenBlacklistService tokenBlacklistService) throws Exception {
         http
                 // 禁用CSRF保护 （API服务通常不需要）
                 .csrf(AbstractHttpConfigurer::disable)
@@ -44,7 +46,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
         // 添加JWT认证过滤器
-        .addFilterBefore(new JwtAuthenticationFilter(jwtUtils, objectMapper), UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(new JwtAuthenticationFilter(jwtUtils, objectMapper, tokenBlacklistService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

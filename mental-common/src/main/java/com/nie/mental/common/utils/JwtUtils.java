@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class JwtUtils {
@@ -42,6 +43,7 @@ public class JwtUtils {
     public String generateToken(Map<String,Object> claims){
         return Jwts.builder()
                 .setClaims(claims)
+                .setId(UUID.randomUUID().toString()) //退出登录使用
                 .setIssuedAt(new Date(System.currentTimeMillis())) //签发时间
                 .setExpiration(new Date(System.currentTimeMillis() + expiration)) //过期时间
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

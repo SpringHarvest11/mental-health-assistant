@@ -19,6 +19,20 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+  # Redis
+  data:
+    redis:
+      timeout: 2000ms
+      host: ${nie.redis.host}
+      port: ${nie.redis.port}
+      password: ${nie.redis.password}
+      database: ${nie.redis.database}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 1000ms
 
 mybatis:
   #开启驼峰命名映射

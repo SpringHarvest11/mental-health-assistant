@@ -11,7 +11,11 @@ import com.nie.mentalpojo.entity.User;
 import com.nie.mentalpojo.vo.UserInfo;
 import com.nie.mentalpojo.vo.UserLoginVO;
 import com.nie.mentalserver.mapper.UserMapper;
+import com.nie.mentalserver.service.TokenBlacklistService;
 import com.nie.mentalserver.service.UserService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class UserServiceImpl implements UserService {
 
@@ -28,6 +33,8 @@ public class UserServiceImpl implements UserService {
     private JwtUtils jwtUtils;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -146,5 +153,22 @@ public class UserServiceImpl implements UserService {
 
         userMapper.insert(user);
 
+    }
+
+    /**
+     * 退出登录，将当前令牌加入黑名单
+     * @param token 请求头中的 JWT 令牌
+     */
+    @Override
+    public void logout(String token) {
+        try {
+            Claims claims = jwtUtils.parseToken(token);
+            //计算token剩余时间
+            long remainingMillis = claims.getExpiration().getTime() - System.currentTimeMillis();
+            tokenBlacklistService.blacklist(claims.getId(), remainingMillis);
+        } catch (JwtException e) {
+            // 令牌已失效时前端会自行清理登录态，无需再拉黑
+            log.warn("退出登录时解析令牌失败: {}", e.getMessage());
+        }
     }
 }

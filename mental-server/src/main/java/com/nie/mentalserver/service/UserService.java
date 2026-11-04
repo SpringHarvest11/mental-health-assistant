@@ -19,4 +19,10 @@ public interface UserService {
      */
     void enroll(UserEnrollDTO userEnrollDTO);
 
+    /**
+     * 退出登录，将当前令牌加入黑名单
+     * @param token 请求头中的 JWT 令牌
+     */
+    void logout(String token);
+
 }

@@ -47,4 +47,16 @@ public class UserController {
         return Result.success();
     }
 
+    /**
+     * 退出登录
+     * @param token 请求头中的 JWT 令牌
+     * @return Result<>
+     */
+    @Operation(summary = "退出登录")
+    @PostMapping("/logout")
+    public Result<Void> logout(@RequestHeader("token") String token){
+        userService.logout(token);
+        return Result.success();
+    }
+
 }
