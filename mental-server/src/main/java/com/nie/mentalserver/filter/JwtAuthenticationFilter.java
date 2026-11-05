@@ -2,6 +2,7 @@ package com.nie.mentalserver.filter;
 
 import com.nie.mental.common.result.Result;
 import com.nie.mental.common.result.ResultCode;
+import com.nie.mental.common.utils.CurrentHolder;
 import com.nie.mental.common.utils.JwtUtils;
 import com.nie.mentalserver.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
@@ -10,7 +11,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -85,6 +85,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
+            //将当前登录用户id存入ThreadLocal中
+            CurrentHolder.setCurrentId(userId);
+
             //构建 Spring Security 的权限对象（ROLE_)
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                     new SimpleGrantedAuthority("ROLE_" + roleType)
@@ -110,11 +113,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 最后兜底，防止其它未知异常逃逸
             writeError(response, "令牌解析发生未知错误");
             return;
+        }finally {
+            //删除ThreadLocal中的数据
+            CurrentHolder.remove();
         }
-
         //放行
         filterChain.doFilter(request, response);
-
     }
 
     /**

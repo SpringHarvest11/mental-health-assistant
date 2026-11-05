@@ -26,7 +26,7 @@ public class ConsultationMessage {
     private String context;
 
     //消息类型 1:文本
-    private Integer contextType;
+    private Integer messageType;
 
     //情绪标签
     private String emotionTag;
