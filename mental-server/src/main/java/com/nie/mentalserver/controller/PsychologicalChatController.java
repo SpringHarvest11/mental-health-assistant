@@ -7,13 +7,16 @@ import com.nie.mental.common.utils.CurrentHolder;
 import com.nie.mentalpojo.dto.ChatSessionQueryDTO;
 import com.nie.mentalpojo.dto.ConsultationSessionStartDTO;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
-import com.nie.mentalpojo.vo.SessionMessageVO;
+import com.nie.mentalpojo.vo.HistoricalMessagesVO;
+import com.nie.mentalpojo.vo.PageSessionMessageVO;
 import com.nie.mentalserver.service.PsychologicalChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/psychological-chat")
@@ -40,8 +43,9 @@ public class PsychologicalChatController {
      * @param chatSessionQueryDTO
      * @return
      */
+    @Operation(summary = "获取会话记录分页查询")
     @GetMapping("/sessions")
-    public Result<PageResult<SessionMessageVO>> pageSessions(ChatSessionQueryDTO chatSessionQueryDTO){
+    public Result<PageResult<PageSessionMessageVO>> pageSessions(ChatSessionQueryDTO chatSessionQueryDTO){
 
         //参数适配转换（抹平不同类型用户差异）
         int page = 1;
@@ -64,5 +68,15 @@ public class PsychologicalChatController {
         }
     }
 
+    /**
+     * 根据会话id获取历史消息
+     * @param sessionId
+     * @return
+     */
+    @Operation(summary = "获取历史对话")
+    @GetMapping("/sessions/{sessionId}/messages")
+    public Result<List<HistoricalMessagesVO>> getMessages(@PathVariable("sessionId") Integer sessionId){
+        return Result.success(psychologicalChatService.getMessages(sessionId));
+    }
 
 }

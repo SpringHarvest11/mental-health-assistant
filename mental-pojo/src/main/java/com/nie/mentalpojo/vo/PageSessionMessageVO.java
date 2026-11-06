@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SessionMessageVO {
+public class PageSessionMessageVO {
 
     //会话数字 ID（消息、删除接口使用
     private Integer id;

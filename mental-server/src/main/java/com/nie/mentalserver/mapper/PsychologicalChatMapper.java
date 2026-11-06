@@ -2,10 +2,12 @@ package com.nie.mentalserver.mapper;
 
 import com.nie.mentalpojo.entity.ConsultationMessage;
 import com.nie.mentalpojo.entity.ConsultationSession;
-import com.nie.mentalpojo.vo.SessionMessageVO;
+import com.nie.mentalpojo.vo.HistoricalMessagesVO;
+import com.nie.mentalpojo.vo.PageSessionMessageVO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -33,11 +35,18 @@ public interface PsychologicalChatMapper {
      * 管理员获取会话记录（看全部会话，带用户昵称）
      * @return
      */
-    List<SessionMessageVO> listAdminSessions();
+    List<PageSessionMessageVO> listAdminSessions();
 
     /**
      * 用户获取会话记录(普通用户：只看自己的会话)
      * @return
      */
-    List<SessionMessageVO> listUserSessions(Integer userId);
+    List<PageSessionMessageVO> listUserSessions(Integer userId);
+
+    /**
+     * 根据会话id获取会话记录
+     * @param sessionId
+     * @return
+     */
+    List<HistoricalMessagesVO> getMessagesBySessionId(Integer sessionId, Integer userId,Integer userType);
 }

@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.nie.mentalserver.mapper.PsychologicalChatMapper">
 
-    <select id="listAdminSessions" resultType="com.nie.mentalpojo.vo.SessionMessageVO">
+    <select id="listAdminSessions" resultType="com.nie.mentalpojo.vo.PageSessionMessageVO">
         SELECT
             cs.id,
             cs.session_title,
@@ -35,7 +35,7 @@
     </select>
 
 
-    <select id="listUserSessions" resultType="com.nie.mentalpojo.vo.SessionMessageVO">
+    <select id="listUserSessions" resultType="com.nie.mentalpojo.vo.PageSessionMessageVO">
         SELECT
             cs.id,
             cs.session_title,
@@ -67,6 +67,17 @@
         LEFT JOIN user u ON u.id = cs.user_id
         WHERE cs.user_id = #{userId}
         ORDER BY last_message_time DESC, cs.id DESC
+    </select>
+
+    <select id="getMessagesBySessionId" resultType="com.nie.mentalpojo.vo.HistoricalMessagesVO">
+        SELECT cm.id, cm.sender_type, cm.content, cm.created_at
+        FROM consultation_message cm
+        JOIN consultation_session cs ON cm.session_id = cs.id
+        WHERE cm.session_id = #{sessionId}
+        <if test="userType == null or userType != 2">
+            AND cs.user_id = #{userId}
+        </if>
+        ORDER BY cm.created_at ASC, cm.id ASC
     </select>
 
 

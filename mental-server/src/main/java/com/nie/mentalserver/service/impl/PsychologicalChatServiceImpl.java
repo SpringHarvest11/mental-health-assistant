@@ -10,7 +10,8 @@ import com.nie.mentalpojo.dto.ConsultationSessionStartDTO;
 import com.nie.mentalpojo.entity.ConsultationMessage;
 import com.nie.mentalpojo.entity.ConsultationSession;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
-import com.nie.mentalpojo.vo.SessionMessageVO;
+import com.nie.mentalpojo.vo.HistoricalMessagesVO;
+import com.nie.mentalpojo.vo.PageSessionMessageVO;
 import com.nie.mentalserver.mapper.PsychologicalChatMapper;
 import com.nie.mentalserver.service.PsychologicalChatService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 public class PsychologicalChatServiceImpl implements PsychologicalChatService {
@@ -83,9 +85,9 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
      * @return
      */
     @Override
-    public PageResult<SessionMessageVO> getAdminSessions(Integer page, Integer size){
+    public PageResult<PageSessionMessageVO> getAdminSessions(Integer page, Integer size){
         PageHelper.startPage(page,size);
-        Page<SessionMessageVO> list = (Page<SessionMessageVO>) psychologicalChatMapper.listAdminSessions();
+        Page<PageSessionMessageVO> list = (Page<PageSessionMessageVO>) psychologicalChatMapper.listAdminSessions();
         return new PageResult<>(list.getTotal(),list.getResult());
     }
 
@@ -96,10 +98,28 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
      * @return
      */
     @Override
-    public PageResult<SessionMessageVO> getUserSessions(Integer page, Integer size){
+    public PageResult<PageSessionMessageVO> getUserSessions(Integer page, Integer size){
         Integer userId = CurrentHolder.getUserId();
         PageHelper.startPage(page,size);
-        Page<SessionMessageVO> list = (Page<SessionMessageVO>) psychologicalChatMapper.listUserSessions(userId);
+        Page<PageSessionMessageVO> list = (Page<PageSessionMessageVO>) psychologicalChatMapper.listUserSessions(userId);
         return new PageResult<>(list.getTotal(),list.getResult());
+    }
+
+    /**
+     * 根据会话消息获取历史对话消息
+     * @param sessionId
+     * @return
+     */
+    @Override
+    public List<HistoricalMessagesVO> getMessages(Integer sessionId){
+        if(sessionId == null){
+            throw new BusinessException("没有会话记录");
+        }
+        Integer userId = CurrentHolder.getUserId();
+        if(userId == null){
+            throw new BusinessException("登录异常或未登录");
+        }
+        Integer userType = CurrentHolder.getUserType();
+        return psychologicalChatMapper.getMessagesBySessionId(sessionId,userId,userType);
     }
 }

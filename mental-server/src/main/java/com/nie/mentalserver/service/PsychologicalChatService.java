@@ -3,7 +3,10 @@ package com.nie.mentalserver.service;
 import com.nie.mental.common.result.PageResult;
 import com.nie.mentalpojo.dto.ConsultationSessionStartDTO;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
-import com.nie.mentalpojo.vo.SessionMessageVO;
+import com.nie.mentalpojo.vo.HistoricalMessagesVO;
+import com.nie.mentalpojo.vo.PageSessionMessageVO;
+
+import java.util.List;
 
 public interface PsychologicalChatService {
 
@@ -20,7 +23,7 @@ public interface PsychologicalChatService {
      * @param size
      * @return
      */
-    PageResult<SessionMessageVO> getAdminSessions(Integer page, Integer size);
+    PageResult<PageSessionMessageVO> getAdminSessions(Integer page, Integer size);
 
     /**
      * 获取普通用户会话记录（分页展示）
@@ -28,5 +31,12 @@ public interface PsychologicalChatService {
      * @param size
      * @return
      */
-    PageResult<SessionMessageVO> getUserSessions(Integer page, Integer size);
+    PageResult<PageSessionMessageVO> getUserSessions(Integer page, Integer size);
+
+    /**
+     * 根据会话消息获取历史对话消息
+     * @param sessionId
+     * @return
+     */
+    List<HistoricalMessagesVO> getMessages(Integer sessionId);
 }
