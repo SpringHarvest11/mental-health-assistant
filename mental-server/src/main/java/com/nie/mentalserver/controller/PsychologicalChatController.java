@@ -1,8 +1,13 @@
 package com.nie.mentalserver.controller;
 
+import com.nie.mental.common.exception.BusinessException;
+import com.nie.mental.common.result.PageResult;
 import com.nie.mental.common.result.Result;
+import com.nie.mental.common.utils.CurrentHolder;
+import com.nie.mentalpojo.dto.ChatSessionQueryDTO;
 import com.nie.mentalpojo.dto.ConsultationSessionStartDTO;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
+import com.nie.mentalpojo.vo.SessionMessageVO;
 import com.nie.mentalserver.service.PsychologicalChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,4 +34,35 @@ public class PsychologicalChatController {
         ConsultationSessionStartVO consultationSessionStartVO = psychologicalChatService.sessionStart(consultationSessionStartDTO);
         return Result.success(consultationSessionStartVO);
     }
+
+    /**
+     * 不同类型用户获取会话记录（分页查询）
+     * @param chatSessionQueryDTO
+     * @return
+     */
+    @GetMapping("/sessions")
+    public Result<PageResult<SessionMessageVO>> pageSessions(ChatSessionQueryDTO chatSessionQueryDTO){
+
+        //参数适配转换（抹平不同类型用户差异）
+        int page = 1;
+        int size = 5;
+
+        //获取当前用户类型
+        Integer userType = CurrentHolder.getUserType();
+        if(Integer.valueOf(1).equals(userType)){
+            //普通用户
+            page = chatSessionQueryDTO.getPageNum() != null ? chatSessionQueryDTO.getPageNum() : 1;
+            size = chatSessionQueryDTO.getPageSize() != null ? chatSessionQueryDTO.getPageSize() : 5;
+            return Result.success(psychologicalChatService.getUserSessions(page,size));
+        }else if(Integer.valueOf(2).equals(userType)){
+            //管理员
+            page = chatSessionQueryDTO.getCurrentPage() != null ? chatSessionQueryDTO.getCurrentPage() : 1;
+            size = chatSessionQueryDTO.getSize() != null ? chatSessionQueryDTO.getSize() : 5;
+            return Result.success(psychologicalChatService.getAdminSessions(page,size));
+        }else{
+            throw new BusinessException("请先登录");
+        }
+    }
+
+
 }

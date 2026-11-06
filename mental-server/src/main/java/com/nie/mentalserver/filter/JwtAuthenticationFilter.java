@@ -86,7 +86,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             //将当前登录用户id存入ThreadLocal中
-            CurrentHolder.setCurrentId(userId);
+            CurrentHolder.setUser(userId,roleType);
+
 
             //构建 Spring Security 的权限对象（ROLE_)
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
@@ -98,6 +99,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             //把认证信息放入安全上下文
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+            //放行
+            filterChain.doFilter(request, response);
 
         } catch (JwtException e) {
             // JwtUtils 抛出来的：过期、签名错误、格式非法
@@ -117,8 +121,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             //删除ThreadLocal中的数据
             CurrentHolder.remove();
         }
-        //放行
-        filterChain.doFilter(request, response);
     }
 
     /**

@@ -23,7 +23,7 @@ public class ConsultationMessage {
     private Integer senderType;
 
     //消息内容
-    private String context;
+    private String content;
 
     //消息类型 1:文本
     private Integer messageType;

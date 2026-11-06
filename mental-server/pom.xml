@@ -83,6 +83,18 @@
             <artifactId>commons-pool2</artifactId>
         </dependency>
 
+        <!--DeepSeek API-->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-deepseek</artifactId>
+        </dependency>
+
+        <!-- PageHelper 分页查询 -->
+        <dependency>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+        </dependency>
+
 
     </dependencies>
 

@@ -2,20 +2,29 @@ package com.nie.mental.common.utils;
 
 public class CurrentHolder {
 
-    private static final ThreadLocal<Integer> CURRENT_LOCAL = new ThreadLocal<>();
+    //
+    private static final ThreadLocal<Integer> USER_ID = new ThreadLocal<>();
+    //
+    private static final ThreadLocal<Integer> USER_TYPE = new ThreadLocal<>();
 
-    public static void setCurrentId(Integer employeeId) {
+    public static void setUser(Integer userId, Integer userType) {
 
-        CURRENT_LOCAL.set(employeeId);
+        USER_ID.set(userId);
+
+        USER_TYPE.set(userType);
     }
 
-    public static Integer getCurrentId() {
+    public static Integer getUserId() {
+        return USER_ID.get();
+    }
 
-        return CURRENT_LOCAL.get();
+    public static Integer getUserType() {
+        return USER_TYPE.get();
     }
 
     public static void remove() {
 
-        CURRENT_LOCAL.remove();
+        USER_ID.remove();
+        USER_TYPE.remove();
     }
 }
