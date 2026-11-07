@@ -60,4 +60,49 @@ public interface PsychologicalChatMapper {
      */
     @Delete("delete from consultation_message where session_id = #{sessionId} ")
     void deleteMessageBySessionId(Integer sessionId);
+
+    /**
+     * 会话归属校验
+     * @param sessionId
+     * @param userId
+     * @return
+     */
+    @Select("select count(*) from consultation_session where id = #{sessionId} and user_id = #{userId}")
+    int countSessionByIdAndUserId(Integer sessionId, Integer userId);
+
+    /**
+     * 获取会话最后一条消息内容（用于处理首条消息重复入库）
+     * @param sessionId
+     * @return
+     */
+    @Select("select content from consultation_message where session_id = #{sessionId} order by id desc limit 1")
+    String getLastMessageContent(Integer sessionId);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

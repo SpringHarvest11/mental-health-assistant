@@ -3,6 +3,7 @@ package com.nie.mentalserver.config;
 import com.nie.mental.common.utils.JwtUtils;
 import com.nie.mentalserver.filter.JwtAuthenticationFilter;
 import com.nie.mentalserver.service.TokenBlacklistService;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 配置请求的授权规则
                 .authorizeHttpRequests(auth -> auth
+                        // SSE 流式响应结束后会触发 ASYNC/ERROR 派发，需放行，否则会被判定为未认证
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         // 公开的路径，无需登录即可访问
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         // 其他请求都需要认证

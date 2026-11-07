@@ -37,6 +37,16 @@ spring:
   ai:
     model:
       chat: deepseek
+    #Redis 对话记忆（依赖 Redis Stack / Redis 8 的 RedisJSON + Query Engine）
+    chat:
+      memory:
+        repository:
+          redis:
+            host: ${nie.redis.host}
+            port: ${nie.redis.port}
+            password: ${nie.redis.password}
+            time-to-live: 7d
+            max-messages-per-conversation: 30
     deepseek:
       api-key: ${nie.deepseek.api-key}
       base-url: https://api.deepseek.com

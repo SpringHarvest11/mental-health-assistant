@@ -53,6 +53,13 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Spring AI 的 Redis 记忆模块要求 Jedis 7.4.1，覆盖 Spring Boot 默认的 7.0.0 -->
+            <dependency>
+                <groupId>redis.clients</groupId>
+                <artifactId>jedis</artifactId>
+                <version>7.4.1</version>
+            </dependency>
+
             <!-- jjwt 三件套 -->
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>

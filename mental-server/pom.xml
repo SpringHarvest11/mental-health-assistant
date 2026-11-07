@@ -83,6 +83,12 @@
             <artifactId>commons-pool2</artifactId>
         </dependency>
 
+        <!-- Spring AI 的 Redis 记忆存储实现 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-chat-memory-repository-redis</artifactId>
+        </dependency>
+
         <!--DeepSeek API-->
         <dependency>
             <groupId>org.springframework.ai</groupId>

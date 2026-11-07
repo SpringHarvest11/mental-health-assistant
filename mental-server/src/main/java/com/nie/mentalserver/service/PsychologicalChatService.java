@@ -2,9 +2,11 @@ package com.nie.mentalserver.service;
 
 import com.nie.mental.common.result.PageResult;
 import com.nie.mentalpojo.dto.ConsultationSessionStartDTO;
+import com.nie.mentalpojo.dto.ConversationDTO;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
 import com.nie.mentalpojo.vo.HistoricalMessagesVO;
 import com.nie.mentalpojo.vo.PageSessionMessageVO;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -45,4 +47,12 @@ public interface PsychologicalChatService {
      * @param sessionId
      */
     void deleteSessionById(Integer sessionId);
+
+    /**
+     * AI流式对话实现
+     * @param userId
+     * @param conversationDTO
+     * @return
+     */
+    Flux<String> streamChat(Integer userId, ConversationDTO conversationDTO);
 }
