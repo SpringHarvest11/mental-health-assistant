@@ -39,4 +39,10 @@ public interface PsychologicalChatService {
      * @return
      */
     List<HistoricalMessagesVO> getMessages(Integer sessionId);
+
+    /**
+     * 根据会话id删除会话记录
+     * @param sessionId
+     */
+    void deleteSessionById(Integer sessionId);
 }

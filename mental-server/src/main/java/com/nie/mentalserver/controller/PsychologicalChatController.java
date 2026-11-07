@@ -79,4 +79,11 @@ public class PsychologicalChatController {
         return Result.success(psychologicalChatService.getMessages(sessionId));
     }
 
+    @Operation(summary = "删除会话")
+    @DeleteMapping("/sessions/{sessionId}")
+    public Result<Object> deleteSession(@PathVariable("sessionId") Integer sessionId){
+
+        psychologicalChatService.deleteSessionById(sessionId);
+        return Result.success();
+    }
 }

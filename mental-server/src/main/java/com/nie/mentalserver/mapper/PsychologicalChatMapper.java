@@ -4,10 +4,7 @@ import com.nie.mentalpojo.entity.ConsultationMessage;
 import com.nie.mentalpojo.entity.ConsultationSession;
 import com.nie.mentalpojo.vo.HistoricalMessagesVO;
 import com.nie.mentalpojo.vo.PageSessionMessageVO;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
@@ -49,4 +46,18 @@ public interface PsychologicalChatMapper {
      * @return
      */
     List<HistoricalMessagesVO> getMessagesBySessionId(Integer sessionId, Integer userId,Integer userType);
+
+    /**
+     * 根据会话id删除会话记录
+     * @param sessionId
+     */
+    @Delete("delete from consultation_session where id = #{sessionId} and user_id = #{userId}")
+    int deleteSessionById(Integer sessionId, Integer userId);
+
+    /**
+     * 根据会话id删除关联历史会话记录
+     * @param sessionId
+     */
+    @Delete("delete from consultation_message where session_id = #{sessionId} ")
+    void deleteMessageBySessionId(Integer sessionId);
 }

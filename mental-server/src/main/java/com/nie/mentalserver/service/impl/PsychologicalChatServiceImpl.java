@@ -122,4 +122,27 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
         Integer userType = CurrentHolder.getUserType();
         return psychologicalChatMapper.getMessagesBySessionId(sessionId,userId,userType);
     }
+
+    /**
+     * 根据会话id删除会话记录
+     * @param sessionId
+     */
+    @Transactional
+    @Override
+    public void deleteSessionById(Integer sessionId){
+       if(sessionId == null){
+           throw new BusinessException("请选择要删除的会话");
+       }
+       Integer userId = CurrentHolder.getUserId();
+       if(userId == null){
+           throw new BusinessException("请先登录");
+       }
+        //删除关联的历史会话记录
+        psychologicalChatMapper.deleteMessageBySessionId(sessionId);
+        //删除会话
+        int row = psychologicalChatMapper.deleteSessionById(sessionId,userId);
+        if(row == 0){
+           throw new BusinessException("会话不存在");
+       }
+    }
 }
