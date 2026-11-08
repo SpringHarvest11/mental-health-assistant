@@ -13,22 +13,27 @@ import com.nie.mentalpojo.entity.ConsultationSession;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
 import com.nie.mentalpojo.vo.HistoricalMessagesVO;
 import com.nie.mentalpojo.vo.PageSessionMessageVO;
+import com.nie.mentalpojo.vo.SessionEmotionVO;
 import com.nie.mentalserver.mapper.PsychologicalChatMapper;
 import com.nie.mentalserver.service.PsychologicalChatService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -36,13 +41,32 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
 
     @Autowired
     private PsychologicalChatMapper psychologicalChatMapper;
+
     @Autowired
+    @Qualifier("chatClient")
     private ChatClient chatClient;
+
     @Autowired
     private ChatMemory chatMemory;
 
     @Value("${spring.ai.deepseek.chat.model:deepseek-chat}")
     private String aiModel;
+
+
+    //
+    private static final int EMOTION_WINDOW = 20;            // 参与分析的用户消息条数
+    private static final int EMOTION_MAX_CHARS = 4000;       // 送入模型的文本总长度上限
+    private static final int EMOTION_MESSAGE_MAX_CHARS = 500; // 单条消息截断长度
+
+    // 同一会话两次请求几乎同时到达，用会话级锁保证只调用一次模型
+    private final ConcurrentHashMap<Integer, Object> emotionLocks = new ConcurrentHashMap<>();
+
+    @Autowired
+    @Qualifier("emotionChatClient")
+    private ChatClient emotionChatClient;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     /**
      * 创建会话实现（开始第一条记录就是创建一个新的会话）
@@ -231,25 +255,196 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
         }
     }
 
+    /**
+     * 会话情绪分析：缓存命中直接返回，没有新的用户消息就不调模型
+     * @param userId 当前登录用户
+     * @param sessionId 会话 id
+     * @return
+     */
+    @Override
+    public SessionEmotionVO analyzeSessionEmotion(Integer userId, Integer sessionId) {
 
+        if (sessionId == null) {
+            throw new BusinessException("会话不存在");
+        }
+        if (psychologicalChatMapper.countSessionByIdAndUserId(sessionId, userId) == 0) {
+            throw new BusinessException("会话不存在");
+        }
 
+        SessionEmotionVO cached = readEmotionCache(sessionId);
+        if (cached != null) {
+            return cached;
+        }
 
+        Object lock = emotionLocks.computeIfAbsent(sessionId, key -> new Object());
+        synchronized (lock) {
+            try {
+                // 双检：前一个请求可能刚好分析完并写入了缓存
+                cached = readEmotionCache(sessionId);
+                if (cached != null) {
+                    return cached;
+                }
 
+                List<String> messages = psychologicalChatMapper.listRecentUserMessages(sessionId, EMOTION_WINDOW);
+                if (messages == null || messages.isEmpty()) {
+                    return SessionEmotionVO.neutral();
+                }
 
+                SessionEmotionVO analyzed = requestEmotion(sessionId, buildTranscript(messages));
+                if (analyzed == null) {
+                    // 模型调用失败不写缓存，下轮请求还能重试
+                    return SessionEmotionVO.neutral();
+                }
+                writeEmotionCache(sessionId, analyzed);
+                return analyzed;
+            } finally {
+                emotionLocks.remove(sessionId, lock);
+            }
+        }
+    }
 
+    /**
+     * 读缓存：最后一条用户消息时间晚于分析时间，视为过期
+     */
+    private SessionEmotionVO readEmotionCache(Integer sessionId) {
+        ConsultationSession cache = psychologicalChatMapper.getEmotionCache(sessionId);
+        if (cache == null
+                || !StringUtils.hasText(cache.getLastEmotionAnalysis())
+                || cache.getLastEmotionUpdatedAt() == null) {
+            return null;
+        }
 
+        LocalDateTime lastUserMessageTime = psychologicalChatMapper.getLastUserMessageTime(sessionId);
+        if (lastUserMessageTime != null && cache.getLastEmotionUpdatedAt().isBefore(lastUserMessageTime)) {
+            return null;
+        }
 
+        try {
+            return normalize(objectMapper.readValue(cache.getLastEmotionAnalysis(), SessionEmotionVO.class));
+        } catch (Exception e) {
+            log.warn("解析情绪分析缓存失败, sessionId={}", sessionId, e);
+            return null;
+        }
+    }
 
+    /**
+     * 调用模型，失败返回 null
+     */
+    private SessionEmotionVO requestEmotion(Integer sessionId, String transcript) {
+        try {
+            SessionEmotionVO vo = emotionChatClient.prompt()
+                    .user(transcript)
+                    .call()
+                    .entity(SessionEmotionVO.class);
+            return vo == null ? null : normalize(vo);
+        } catch (Exception e) {
+            log.error("会话情绪分析失败, sessionId={}", sessionId, e);
+            return null;
+        }
+    }
 
+    /**
+     * 回写缓存
+     */
+    private void writeEmotionCache(Integer sessionId, SessionEmotionVO vo) {
+        try {
+            psychologicalChatMapper.updateEmotionCache(
+                    sessionId,
+                    objectMapper.writeValueAsString(vo),
+                    LocalDateTime.now());
+        } catch (Exception e) {
+            log.warn("回写情绪分析缓存失败, sessionId={}", sessionId, e);
+        }
+    }
 
+    /**
+     * 拼接送模型的文本：按时间正序，超长时优先保留最近的消息
+     */
+    private String buildTranscript(List<String> messagesDesc) {
+        List<String> lines = new ArrayList<>();
+        for (int i = messagesDesc.size() - 1; i >= 0; i--) {
+            String content = messagesDesc.get(i);
+            if (!StringUtils.hasText(content)) {
+                continue;
+            }
+            String text = content.length() > EMOTION_MESSAGE_MAX_CHARS
+                    ? content.substring(0, EMOTION_MESSAGE_MAX_CHARS) + "…"
+                    : content;
+            lines.add("用户：" + text);
+        }
 
+        // 总长度超限时从最早的消息开始丢弃
+        int start = lines.size() - 1;
+        int total = 0;
+        while (start >= 0) {
+            int next = total + lines.get(start).length() + 1;
+            if (next > EMOTION_MAX_CHARS) {
+                break;
+            }
+            total = next;
+            start--;
+        }
+        if (start < 0) {
+            return String.join("\n", lines);
+        }
+        return String.join("\n", lines.subList(start + 1, lines.size()));
+    }
 
+    /**
+     * 模型输出不可信，统一归一化
+     */
+    private SessionEmotionVO normalize(SessionEmotionVO vo) {
+        SessionEmotionVO result = vo == null ? SessionEmotionVO.neutral() : vo;
 
+        if (!StringUtils.hasText(result.getPrimaryEmotion())) {
+            result.setPrimaryEmotion("中性");
+        }
+        int score = result.getEmotionScore() == null ? 50
+                : Math.max(0, Math.min(100, result.getEmotionScore()));
+        result.setEmotionScore(score);
 
+        int risk = result.getRiskLevel() == null ? 0
+                : Math.max(0, Math.min(3, result.getRiskLevel()));
+        result.setRiskLevel(risk);
 
-
-
-
-
-
+        if (result.getIsNegative() == null) {
+            result.setIsNegative(risk > 0 || score < 40);
+        }
+        if (result.getImprovementSuggestions() == null) {
+            result.setImprovementSuggestions(new ArrayList<>());
+        }
+        if (!StringUtils.hasText(result.getRiskDescription())) {
+            result.setRiskDescription("暂未发现明显风险。");
+        }
+        if (!StringUtils.hasText(result.getSuggestion())) {
+            result.setSuggestion("先别急着评判自己，允许情绪存在也是一种照顾。");
+        }
+        if (risk >= 3) {
+            result.setSuggestion("你现在的状态需要被认真对待，请立即联系身边信任的人、学校心理中心，"
+                    + "或拨打心理援助热线。");
+        }
+        return result;
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -22,4 +22,24 @@ public class AiConfig {
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())//记忆顾问
                 .build();
     }
+
+    /**
+     * 情绪分析专用：不挂记忆顾问，避免污染咨询上下文，也不会写入 chat-memory
+     */
+    @Bean
+    public ChatClient emotionChatClient(ChatClient.Builder builder) {
+        return builder.defaultSystem("""
+                你是情绪分析器。下面会给出某次心理咨询会话中用户最近说过的话（按时间顺序）。
+                请分析用户当前的主要情绪状态，严格按 JSON 输出，不要输出 markdown 代码块或任何解释文字。
+                字段要求：
+                primaryEmotion：主要情绪，一个中文词，如 焦虑、低落、平静；
+                emotionScore：情绪强度，0~100 的整数；
+                isNegative：是否负面情绪，true 或 false；
+                riskLevel：0 正常 / 1 关注 / 2 预警 / 3 危机，出现自伤、自杀、伤人内容时必须为 3；
+                riskDescription：风险描述，一句话；
+                suggestion：给用户的温暖建议，50 字以内；
+                improvementSuggestions：3 条具体可执行的改善建议组成的数组。
+                """)
+                .build();
+    }
 }

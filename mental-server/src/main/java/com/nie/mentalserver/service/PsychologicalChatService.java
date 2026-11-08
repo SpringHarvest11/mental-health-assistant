@@ -6,6 +6,7 @@ import com.nie.mentalpojo.dto.ConversationDTO;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
 import com.nie.mentalpojo.vo.HistoricalMessagesVO;
 import com.nie.mentalpojo.vo.PageSessionMessageVO;
+import com.nie.mentalpojo.vo.SessionEmotionVO;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -55,4 +56,12 @@ public interface PsychologicalChatService {
      * @return
      */
     Flux<String> streamChat(Integer userId, ConversationDTO conversationDTO);
+
+    /**
+     * 会话情绪分析（带缓存）
+     * @param userId 当前登录用户
+     * @param sessionId 会话 id
+     * @return 情绪分析结果
+     */
+    SessionEmotionVO analyzeSessionEmotion(Integer userId, Integer sessionId);
 }

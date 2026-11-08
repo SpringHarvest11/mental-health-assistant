@@ -10,6 +10,7 @@ import com.nie.mentalpojo.dto.ConversationDTO;
 import com.nie.mentalpojo.vo.ConsultationSessionStartVO;
 import com.nie.mentalpojo.vo.HistoricalMessagesVO;
 import com.nie.mentalpojo.vo.PageSessionMessageVO;
+import com.nie.mentalpojo.vo.SessionEmotionVO;
 import com.nie.mentalserver.service.PsychologicalChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -131,6 +132,38 @@ public class PsychologicalChatController {
         String json = objectMapper.writeValueAsString(
                 Map.of("code", "-1", "message", "AI回复失败，请稍后重试"));
         return ServerSentEvent.builder(json).build();
+    }
+
+    /**
+     * 会话情绪分析：前端传的是 session_<id>
+     * @param sessionId
+     * @return
+     */
+    @Operation(summary = "会话情绪分析")
+    @GetMapping("/session/{sessionId}/emotion")
+    public Result<SessionEmotionVO> analyzeSessionEmotion(@PathVariable("sessionId") String sessionId) {
+
+        Integer userId = CurrentHolder.getUserId();
+        if (userId == null) {
+            throw new BusinessException("请先登录");
+        }
+        return Result.success(
+                psychologicalChatService.analyzeSessionEmotion(userId, parseSessionId(sessionId)));
+    }
+
+    /**
+     * 剥掉前端补的 session_ 前缀
+     */
+    private Integer parseSessionId(String sessionId) {
+        String raw = sessionId == null ? "" : sessionId.trim();
+        if (raw.startsWith("session_")) {
+            raw = raw.substring("session_".length());
+        }
+        try {
+            return Integer.valueOf(raw);
+        } catch (NumberFormatException e) {
+            throw new BusinessException("会话不存在");
+        }
     }
 
 
