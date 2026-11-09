@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UserInfo {
+public class UserInfoVO {
     private Integer id; //用户id
 
     private String username; //用户名

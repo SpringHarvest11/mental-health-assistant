@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 public class UserLoginVO {
 
     private String token;
-    private UserInfo userInfo;
+    private UserInfoVO userInfo;
     private String roleType; //账号类型，1：普通用户，2：管理员
 }

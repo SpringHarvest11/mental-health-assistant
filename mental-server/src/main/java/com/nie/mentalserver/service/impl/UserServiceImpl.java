@@ -8,7 +8,7 @@ import com.nie.mental.common.utils.JwtUtils;
 import com.nie.mentalpojo.dto.UserEnrollDTO;
 import com.nie.mentalpojo.dto.UserLoginDTO;
 import com.nie.mentalpojo.entity.User;
-import com.nie.mentalpojo.vo.UserInfo;
+import com.nie.mentalpojo.vo.UserInfoVO;
 import com.nie.mentalpojo.vo.UserLoginVO;
 import com.nie.mentalserver.mapper.UserMapper;
 import com.nie.mentalserver.service.TokenBlacklistService;
@@ -78,7 +78,7 @@ public class UserServiceImpl implements UserService {
         String token = jwtUtils.generateToken(claims);
 
         //构建UserInfo对象
-        UserInfo userInfo = new UserInfo();
+        UserInfoVO userInfo = new UserInfoVO();
         BeanUtils.copyProperties(user, userInfo);
         if ( user.getGender().equals( UserGender.FEMALE.getGender())){
             userInfo.setGenderDisplayName(UserGender.FEMALE.getGenderDisplayName());

@@ -2,9 +2,10 @@ package com.nie.mentalpojo.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
+import lombok.Data;
 
-@Getter
+
+@Data
 public class ConsultationSessionStartDTO {
 
     //用户的第一条消息
