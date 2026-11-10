@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.nie.mentalserver.mapper.EmotionDiaryMapper">
+
+    <select id="listDiary" resultType="com.nie.mentalpojo.vo.PageEmotionDiaryVO">
+        select e.*, u.username, u.nickname
+        from emotion_diary e
+        left join user u on e.user_id = u.id
+        <where>
+            <if test="userId != null">
+                and e.user_id = #{userId}
+            </if>
+            <if test="minScore != null and maxScore != null">
+                and e.mood_score between #{minScore} and #{maxScore}
+            </if>
+        </where>
+        order by e.created_at desc
+
+
+    </select>
+</mapper>

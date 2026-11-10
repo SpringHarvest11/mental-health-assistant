@@ -1,9 +1,11 @@
 package com.nie.mentalserver.controller;
 
 import com.nie.mental.common.exception.BusinessException;
+import com.nie.mental.common.result.PageResult;
 import com.nie.mental.common.result.Result;
 import com.nie.mental.common.utils.CurrentHolder;
 import com.nie.mentalpojo.dto.DiarizeDTO;
+import com.nie.mentalpojo.vo.PageEmotionDiaryVO;
 import com.nie.mentalserver.service.EmotionDiaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,6 +39,31 @@ public class EmotionDiaryController {
     }
 
     /**
+     * 管理员后台情绪日记分页查询
+     * @param current
+     * @param size
+     * @param userId
+     * @param moodScreRange 评分区间，如 "1-3"（字段名沿用前端拼写）
+     * @return
+     */
+    @GetMapping("/admin/page")
+    @Operation(summary = "后台情绪日志分页")
+    public Result<PageResult<PageEmotionDiaryVO>> pageDiary(@RequestParam(value = "current", required = false) Integer current,
+                                                            @RequestParam(value = "size", required = false) Integer size,
+                                                            @RequestParam(value = "userId", required = false) Integer userId,
+                                                            @RequestParam(value = "moodScreRange", required = false) String moodScreRange){//score错别字
+        Integer adminId = CurrentHolder.getUserId();
+        if(adminId == null){
+            throw new BusinessException("请先登录");
+        }
+        Integer userType = CurrentHolder.getUserType();
+        if(userType == null || userType == 1){
+            throw new BusinessException("权限不够，无法进行该操作");
+        }
+        return Result.success(emotionDiaryService.pageDiary(current, size, userId, moodScreRange));
+    }
+
+    /**
      * 删除情绪日记
      * @param id
      * @return
@@ -55,4 +82,6 @@ public class EmotionDiaryController {
         emotionDiaryService.deleteDiaryById(id);
         return Result.success();
     }
+
+
 }

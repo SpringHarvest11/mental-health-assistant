@@ -16,6 +16,7 @@ import com.nie.mentalpojo.vo.PageSessionMessageVO;
 import com.nie.mentalpojo.vo.SessionEmotionVO;
 import com.nie.mentalserver.mapper.PsychologicalChatMapper;
 import com.nie.mentalserver.service.PsychologicalChatService;
+import com.nie.mentalserver.util.EmotionAnalysisNormalizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -67,6 +68,9 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private EmotionAnalysisNormalizer emotionAnalysisNormalizer;
 
     /**
      * 创建会话实现（开始第一条记录就是创建一个新的会话）
@@ -319,12 +323,7 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
             return null;
         }
 
-        try {
-            return normalize(objectMapper.readValue(cache.getLastEmotionAnalysis(), SessionEmotionVO.class));
-        } catch (Exception e) {
-            log.warn("解析情绪分析缓存失败, sessionId={}", sessionId, e);
-            return null;
-        }
+        return emotionAnalysisNormalizer.parse(cache.getLastEmotionAnalysis());
     }
 
     /**
@@ -336,7 +335,7 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
                     .user(transcript)
                     .call()
                     .entity(SessionEmotionVO.class);
-            return vo == null ? null : normalize(vo);
+            return vo == null ? null : emotionAnalysisNormalizer.normalize(vo);
         } catch (Exception e) {
             log.error("会话情绪分析失败, sessionId={}", sessionId, e);
             return null;
@@ -388,42 +387,6 @@ public class PsychologicalChatServiceImpl implements PsychologicalChatService {
             return String.join("\n", lines);
         }
         return String.join("\n", lines.subList(start + 1, lines.size()));
-    }
-
-    /**
-     * 模型输出不可信，统一归一化
-     */
-    private SessionEmotionVO normalize(SessionEmotionVO vo) {
-        SessionEmotionVO result = vo == null ? SessionEmotionVO.neutral() : vo;
-
-        if (!StringUtils.hasText(result.getPrimaryEmotion())) {
-            result.setPrimaryEmotion("中性");
-        }
-        int score = result.getEmotionScore() == null ? 50
-                : Math.max(0, Math.min(100, result.getEmotionScore()));
-        result.setEmotionScore(score);
-
-        int risk = result.getRiskLevel() == null ? 0
-                : Math.max(0, Math.min(3, result.getRiskLevel()));
-        result.setRiskLevel(risk);
-
-        if (result.getIsNegative() == null) {
-            result.setIsNegative(risk > 0 || score < 40);
-        }
-        if (result.getImprovementSuggestions() == null) {
-            result.setImprovementSuggestions(new ArrayList<>());
-        }
-        if (!StringUtils.hasText(result.getRiskDescription())) {
-            result.setRiskDescription("暂未发现明显风险。");
-        }
-        if (!StringUtils.hasText(result.getSuggestion())) {
-            result.setSuggestion("先别急着评判自己，允许情绪存在也是一种照顾。");
-        }
-        if (risk >= 3) {
-            result.setSuggestion("你现在的状态需要被认真对待，请立即联系身边信任的人、学校心理中心，"
-                    + "或拨打心理援助热线。");
-        }
-        return result;
     }
 }
 
