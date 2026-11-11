@@ -10,6 +10,7 @@ import com.nie.mentalpojo.dto.DiarizeDTO;
 import com.nie.mentalpojo.entity.AiAnalysisTask;
 import com.nie.mentalpojo.entity.EmotionDiary;
 import com.nie.mentalpojo.vo.PageEmotionDiaryVO;
+import com.nie.mentalserver.mapper.AiAnalysisTaskMapper;
 import com.nie.mentalserver.mapper.EmotionDiaryMapper;
 import com.nie.mentalserver.service.EmotionDiaryService;
 import com.nie.mentalserver.util.EmotionAnalysisNormalizer;
@@ -32,6 +33,9 @@ public class EmotionDiaryServiceImpl implements EmotionDiaryService {
     @Autowired
     private EmotionAnalysisNormalizer emotionAnalysisNormalizer;
 
+    @Autowired
+    private AiAnalysisTaskMapper aiAnalysisTaskMapper;
+
     /**
      * 提交情绪日记
      * @param userId
@@ -41,44 +45,78 @@ public class EmotionDiaryServiceImpl implements EmotionDiaryService {
     @Transactional
     public void diarize(Integer userId, DiarizeDTO dto){
 
-        //组装情绪日记对象
+//        //组装情绪日记对象
+//        EmotionDiary diary = new EmotionDiary();
+//        BeanUtils.copyProperties(dto,diary);
+//        diary.setUserId(userId);
+//        diary.setCreatedAt(LocalDateTime.now());
+//        diary.setUpdatedAt(LocalDateTime.now());
+//
+//
+//        //先查看该用户当天有没有记录
+//        EmotionDiary old = emotionDiaryMapper.getDiaryByUserIdAndDate(userId,dto.getDiaryDate());
+//
+//        //组装对应的AI任务分析表
+//        AiAnalysisTask task = new AiAnalysisTask();
+//        task.setUserId(userId);
+//        task.setStatus(AiAnalysisTaskStatus.PENDING.toString());
+//        task.setTaskType(AiAnalysisTaskType.AUTO.toString());
+//        task.setPriority(2);
+//        task.setRetryCount(0);
+//        task.setMaxRetryCount(3);
+//        task.setCreatedAt(LocalDateTime.now());
+//        task.setUpdatedAt(LocalDateTime.now());
+//
+//        //有，覆盖第一篇
+//        if(old != null){
+//            //覆盖上一篇情绪日记
+//            emotionDiaryMapper.updateDiary(diary);
+//            //删除情绪日记对应AI任务分析表
+//            aiAnalysisTaskMapper.deleteAiAnalysisTaskByDiaryId(old.getId());
+//            //创建新的AI任务分析表
+//            task.setDiaryId(old.getId());
+//            aiAnalysisTaskMapper.insert(task);
+//            return;
+//        }
+//        //没有，新建一篇情绪日记表
+//        emotionDiaryMapper.insert(diary);
+//        //创建对应的AI任务分析表
+//        task.setDiaryId(diary.getId());
+//        aiAnalysisTaskMapper.insert(task);
         EmotionDiary diary = new EmotionDiary();
-        BeanUtils.copyProperties(dto,diary);
+        BeanUtils.copyProperties(dto, diary);
         diary.setUserId(userId);
+        diary.setAiEmotionAnalysis(null);
+        diary.setAiAnalysisUpdatedAt(null);
         diary.setCreatedAt(LocalDateTime.now());
         diary.setUpdatedAt(LocalDateTime.now());
 
+        // 有则覆盖，无则新增；依赖 unique(user_id, diary_date)
+        emotionDiaryMapper.upsert(diary);
 
-        //先查看该用户当天有没有记录
-        EmotionDiary old = emotionDiaryMapper.getDiaryByUserIdAndDate(userId,dto.getDiaryDate());
-
-        //组装对应的AI任务分析表
-        AiAnalysisTask task = new AiAnalysisTask();
-        task.setUserId(userId);
-        task.setStatus(AiAnalysisTaskStatus.PENDING.toString());
-        task.setTaskType(AiAnalysisTaskType.AUTO.toString());
-        task.setPriority(2);
-        task.setRetryCount(0);
-        task.setMaxRetryCount(3);
-        task.setCreatedAt(LocalDateTime.now());
-        task.setUpdatedAt(LocalDateTime.now());
-
-        //有，覆盖第一篇
-        if(old != null){
-            //覆盖上一篇情绪日记
-            emotionDiaryMapper.updateDiary(diary);
-            //删除情绪日记对应AI任务分析表
-            emotionDiaryMapper.deleteAiAnalysisTaskByDiaryId(old.getId());
-            //创建新的AI任务分析表
-            task.setDiaryId(old.getId());
-            emotionDiaryMapper.insertAiAnalysisTask(task);
-            return;
+        Integer diaryId = diary.getId();
+        if (diaryId == null) {
+            diaryId = emotionDiaryMapper.selectIdByUserIdAndDate(userId, dto.getDiaryDate());
         }
-        //没有，新建一篇情绪日记表
-        emotionDiaryMapper.insert(diary);
-        //创建对应的AI任务分析表
-        task.setDiaryId(diary.getId());
-        emotionDiaryMapper.insertAiAnalysisTask(task);
+        if (diaryId == null) {
+            throw new BusinessException("保存情绪日记失败");
+        }
+
+        // 旧任务未完成就作废；已完成/失败的任务保留做历史
+        emotionDiaryMapper.deleteActiveTasksByDiaryId(diaryId);
+
+        AiAnalysisTask task = AiAnalysisTask.builder()
+                .diaryId(diaryId)
+                .userId(userId)
+                .status(AiAnalysisTaskStatus.PENDING.toString())
+                .taskType(AiAnalysisTaskType.AUTO.toString())
+                .priority(2)
+                .retryCount(0)
+                .maxRetryCount(3)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        aiAnalysisTaskMapper.insert(task);
     }
 
     /**
@@ -133,7 +171,7 @@ public class EmotionDiaryServiceImpl implements EmotionDiaryService {
         //删除用户相关的情绪日记
         emotionDiaryMapper.deleteDiaryById(id);
         //删除用户情绪日记对应的ai分析记录
-        emotionDiaryMapper.deleteAiAnalysisTaskByDiaryId(id);
+        aiAnalysisTaskMapper.deleteAiAnalysisTaskByDiaryId(id);
     }
 
 }

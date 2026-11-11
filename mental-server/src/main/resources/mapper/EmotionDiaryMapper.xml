@@ -15,7 +15,83 @@
             </if>
         </where>
         order by e.created_at desc
-
-
     </select>
+
+
+    <!-- 依赖 unique(user_id, diary_date)，并发提交也不会重复插入 -->
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into emotion_diary
+        (user_id, diary_date, mood_score, dominant_emotion, emotion_triggers,
+        diary_content, sleep_quality, stress_level,
+        ai_emotion_analysis, ai_analysis_updated_at, created_at, updated_at)
+        values
+        (#{userId}, #{diaryDate}, #{moodScore}, #{dominantEmotion}, #{emotionTriggers},
+        #{diaryContent}, #{sleepQuality}, #{stressLevel},
+        null, null, #{createdAt}, #{updatedAt})
+        on duplicate key update
+        mood_score = values(mood_score),
+        dominant_emotion = values(dominant_emotion),
+        emotion_triggers = values(emotion_triggers),
+        diary_content = values(diary_content),
+        sleep_quality = values(sleep_quality),
+        stress_level = values(stress_level),
+        ai_emotion_analysis = null,
+        ai_analysis_updated_at = null,
+        updated_at = values(updated_at),
+        id = last_insert_id(id)
+    </insert>
+
+    <select id="selectIdByUserIdAndDate" resultType="java.lang.Integer">
+        select id
+        from emotion_diary
+        where user_id = #{userId}
+        and diary_date = #{diaryDate}
+    </select>
+
+    <select id="getActiveDiaryByTaskId" resultType="com.nie.mentalpojo.entity.EmotionDiary">
+        select d.*
+        from emotion_diary d
+        join ai_analysis_task t on t.diary_id = d.id
+        where t.id = #{taskId}
+        and t.status = 'PROCESSING'
+    </select>
+
+    <!-- 写回的唯一入口：任务仍处理中 + 日记仍是送模型时的快照 -->
+    <update id="updateAnalysisIfSnapshotMatches">
+        update emotion_diary e
+        join ai_analysis_task t on t.diary_id = e.id
+        set e.ai_emotion_analysis = #{analysis},
+        e.ai_analysis_updated_at = #{now}
+        where t.id = #{taskId}
+        and t.status = 'PROCESSING'
+        and e.id = #{snapshot.id}
+        and e.diary_content      &lt;=&gt; #{snapshot.diaryContent}
+        and e.mood_score         &lt;=&gt; #{snapshot.moodScore}
+        and e.dominant_emotion   &lt;=&gt; #{snapshot.dominantEmotion}
+        and e.emotion_triggers   &lt;=&gt; #{snapshot.emotionTriggers}
+        and e.sleep_quality      &lt;=&gt; #{snapshot.sleepQuality}
+        and e.stress_level       &lt;=&gt; #{snapshot.stressLevel}
+    </update>
+
+    <!-- 用于区分“条件不成立”和“值本来就相同” -->
+    <select id="isSnapshotStillValid" resultType="int">
+        select count(1)
+        from emotion_diary e
+        join ai_analysis_task t on t.diary_id = e.id
+        where t.id = #{taskId}
+        and t.status = 'PROCESSING'
+        and e.id = #{snapshot.id}
+        and e.diary_content      &lt;=&gt; #{snapshot.diaryContent}
+        and e.mood_score         &lt;=&gt; #{snapshot.moodScore}
+        and e.dominant_emotion   &lt;=&gt; #{snapshot.dominantEmotion}
+        and e.emotion_triggers   &lt;=&gt; #{snapshot.emotionTriggers}
+        and e.sleep_quality      &lt;=&gt; #{snapshot.sleepQuality}
+        and e.stress_level       &lt;=&gt; #{snapshot.stressLevel}
+    </select>
+
+    <delete id="deleteActiveTasksByDiaryId">
+        delete from ai_analysis_task
+        where diary_id = #{diaryId}
+        and status in ('PENDING', 'PROCESSING')
+    </delete>
 </mapper>

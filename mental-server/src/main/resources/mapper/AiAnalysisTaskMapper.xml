@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nie.mentalserver.mapper.AiAnalysisTaskMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into ai_analysis_task
+        (diary_id, user_id, status, task_type, priority,
+        retry_count, max_retry_count, created_at, updated_at)
+        values
+        (#{diaryId}, #{userId}, #{status}, #{taskType}, #{priority},
+        #{retryCount}, #{maxRetryCount}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="listPendingIds" resultType="java.lang.Integer">
+        select id
+        from ai_analysis_task
+        where status = 'PENDING'
+        order by priority asc, created_at asc
+        limit #{limit}
+    </select>
+
+    <!-- 只有 PENDING 才能被领取，多实例下也只有一个线程能成功 -->
+    <update id="claim">
+        update ai_analysis_task
+        set status = 'PROCESSING',
+        started_at = now(),
+        updated_at = now()
+        where id = #{id}
+        and status = 'PENDING'
+    </update>
+
+    <update id="complete">
+        update ai_analysis_task
+        set status = 'COMPLETED',
+        completed_at = now(),
+        updated_at = now()
+        where id = #{id}
+        and status = 'PROCESSING'
+    </update>
+
+    <!-- 失败重试：未超过上限回到 PENDING，超过上限落 FAILED -->
+    <update id="fail">
+        update ai_analysis_task
+        set retry_count = retry_count + 1,
+        status = case
+        when retry_count + 1 &lt; max_retry_count then 'PENDING'
+        else 'FAILED'
+        end,
+        started_at = case
+        when retry_count + 1 &lt; max_retry_count then null
+        else started_at
+        end,
+        completed_at = case
+        when retry_count + 1 &lt; max_retry_count then completed_at
+        else now()
+        end,
+        error_message = #{error},
+        updated_at = now()
+        where id = #{id}
+        and status = 'PROCESSING'
+    </update>
+
+    <!-- 日记已删除或结果已过期：直接终止，不再重试 -->
+    <update id="markOrphan">
+        update ai_analysis_task
+        set status = 'FAILED',
+        retry_count = max_retry_count,
+        error_message = #{error},
+        completed_at = now(),
+        updated_at = now()
+        where id = #{id}
+        and status = 'PROCESSING'
+    </update>
+
+    <!-- 回收卡在 PROCESSING 的任务 -->
+    <update id="recoverStale">
+        update ai_analysis_task
+        set retry_count = retry_count + 1,
+        status = case
+        when retry_count + 1 &lt; max_retry_count then 'PENDING'
+        else 'FAILED'
+        end,
+        started_at = case
+        when retry_count + 1 &lt; max_retry_count then null
+        else started_at
+        end,
+        completed_at = case
+        when retry_count + 1 &lt; max_retry_count then completed_at
+        else now()
+        end,
+        error_message = '分析超时',
+        updated_at = now()
+        where status = 'PROCESSING'
+        and started_at is not null
+        and started_at &lt; #{deadline}
+    </update>
+
+</mapper>

@@ -6,6 +6,7 @@ import com.nie.mentalpojo.vo.PageEmotionDiaryVO;
 import org.apache.ibatis.annotations.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -49,22 +50,22 @@ public interface EmotionDiaryMapper {
     @Delete("delete from emotion_diary where id = #{id}")
     void deleteDiaryById(Integer id);
 
-    /**
-     * 删除情绪日记对应的AI任务分析表
-     * @param diaryId
-     */
-    @Delete("delete from ai_analysis_task where diary_id = #{diaryId}")
-    void deleteAiAnalysisTaskByDiaryId(Integer diaryId);
+//    /**
+//     * 删除情绪日记对应的AI任务分析表
+//     * @param diaryId
+//     */
+//    @Delete("delete from ai_analysis_task where diary_id = #{diaryId}")
+//    void deleteAiAnalysisTaskByDiaryId(Integer diaryId);
 
-    /**
-     * 向Ai任务分析表中插入一条数据
-     * @param task
-     */
-    @Insert("insert into ai_analysis_task (diary_id, user_id, status, task_type, priority, retry_count, max_retry_count, error_message, started_at," +
-            " completed_at, created_at,updated_at)" +
-            " values (#{diaryId},#{userId},#{status},#{taskType},#{priority},#{retryCount},#{maxRetryCount},#{errorMessage},#{startedAt}," +
-            "#{completedAt},#{createdAt},#{updatedAt})")
-    void insertAiAnalysisTask(AiAnalysisTask task);
+//    /**
+//     * 向Ai任务分析表中插入一条数据
+//     * @param task
+//     */
+//    @Insert("insert into ai_analysis_task (diary_id, user_id, status, task_type, priority, retry_count, max_retry_count, error_message, started_at," +
+//            " completed_at, created_at,updated_at)" +
+//            " values (#{diaryId},#{userId},#{status},#{taskType},#{priority},#{retryCount},#{maxRetryCount},#{errorMessage},#{startedAt}," +
+//            "#{completedAt},#{createdAt},#{updatedAt})")
+//    void insertAiAnalysisTask(AiAnalysisTask task);
 
     /**
      * 管理员后台情绪日记分页查询
@@ -75,5 +76,59 @@ public interface EmotionDiaryMapper {
      */
     List<PageEmotionDiaryVO> listDiary(Integer userId, Integer minScore, Integer maxScore);
 
+
+
+//
+
+    /**
+     *新建情绪日记或覆盖情绪日记（on duplicate key update语法）
+     * @param diary
+     */
+    void upsert(EmotionDiary diary);
+
+    /**
+     *根据用户id和时期获取情绪日记id
+     * @param userId
+     * @param diaryDate
+     * @return
+     */
+    Integer selectIdByUserIdAndDate(@Param("userId") Integer userId,
+                                    @Param("diaryDate") LocalDate diaryDate);
+
+    /**
+     *根据AI分析任务表的id获取情绪日记，且AI分析任务表中的status为 ROCESSING-处理中
+     * @param taskId
+     * @return
+     */
+    EmotionDiary getActiveDiaryByTaskId(@Param("taskId") Integer taskId);
+
+    /**
+     *将正常的AI分析的结果写回情绪日记表中
+     * @param taskId
+     * @param snapshot
+     * @param analysis
+     * @param now
+     * @return
+     */
+    int updateAnalysisIfSnapshotMatches(@Param("taskId") Integer taskId,
+                                        @Param("snapshot") EmotionDiary snapshot,
+                                        @Param("analysis") String analysis,
+                                        @Param("now") LocalDateTime now);
+
+    /**
+     *获取能够正确写回的情绪日记条数
+     * @param taskId
+     * @param snapshot
+     * @return
+     */
+    int isSnapshotStillValid(@Param("taskId") Integer taskId,
+                             @Param("snapshot") EmotionDiary snapshot);
+
+    /**
+     *根据情绪日记id删除状态为 PROCESSING-处理中或 PROCESSING-处理中的AI分析任务表
+     * @param diaryId
+     * @return
+     */
+    int deleteActiveTasksByDiaryId(@Param("diaryId") Integer diaryId);
 
 }
