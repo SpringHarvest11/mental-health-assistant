@@ -42,6 +42,10 @@ public class AiConfig {
                 """)
                 .build();
     }
+
+    /**
+     *情绪日记分析专用：
+     */
     @Bean
     public ChatClient diaryEmotionChatClient(ChatClient.Builder builder) {
         return builder.defaultSystem("""

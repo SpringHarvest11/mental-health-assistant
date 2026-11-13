@@ -100,6 +100,11 @@ public class PsychologicalChatController {
         return Result.success();
     }
 
+    /**
+     * AI对话
+     * @param dto
+     * @return
+     */
     @Operation(summary = "AI流式对话")
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chatStream(@Valid @RequestBody ConversationDTO dto){

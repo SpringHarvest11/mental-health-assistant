@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nie.mentalserver.mapper.DataAnalyticsMapper">
+
+    <!-- 顶部四张卡片 -->
+    <select id="getSystemOverview" resultType="com.nie.mentalpojo.vo.SystemOverviewVO">
+        select
+        <!--统计总用户数-->
+        (select count(*)
+        from `user`
+        where user_type = 1) as total_users,
+        <!--活跃用户-->
+        (select count(*)
+        from `user` u
+        where u.user_type = 1
+        and u.status = 1
+        and (exists (select 1
+        from consultation_session cs
+        where cs.user_id = u.id
+        and cs.started_at >= #{activeSince})
+        or exists (select 1
+        from emotion_diary ed
+        where ed.user_id = u.id
+        and ed.diary_date >= #{activeSince}))
+        ) as active_users,
+        <!--全部情绪日记总数-->
+        (select count(*) from emotion_diary) as total_diaries,
+        <!--今日新增情绪日记-->
+        (select count(*)
+        from emotion_diary
+        where created_at >= #{today}
+        and created_at &lt; date_add(#{today}, interval 1 day)
+        ) as today_new_diaries,
+        <!--全部咨询会话总数-->
+        (select count(*) from consultation_session) as total_sessions,
+        <!--今日新增咨询会话-->
+        (select count(*)
+        from consultation_session
+        where started_at >= #{today}
+        and started_at &lt; date_add(#{today}, interval 1 day)
+        ) as today_new_sessions,
+        <!--平均情绪分数-->
+        (select coalesce(round(avg(mood_score), 1), 0)
+        from emotion_diary) as avg_mood_score
+    </select>
+
+    <!-- 情绪趋势：按日记日期聚合 -->
+    <select id="listEmotionTrend" resultType="com.nie.mentalpojo.vo.EmotionTrendVO">
+        select diary_date as date,
+        coalesce(round(avg(mood_score), 1), 0) as avg_mood_score,
+        count(*) as record_count
+        from emotion_diary
+        where diary_date between #{startDate} and #{endDate}
+        group by diary_date
+        order by diary_date
+    </select>
+
+    <!-- 会话总数与平均时长：没有结束时间字段，用最后一条消息时间计算 -->
+    <select id="getConsultationSummary" resultType="com.nie.mentalpojo.vo.ConsultationStatsVO">
+        select count(*) as total_sessions,
+        <!--平均时长-->
+        coalesce(round(avg(
+        timestampdiff(
+        minute,
+        cs.started_at,
+        coalesce(m.max_created_at, cs.started_at)
+        )
+        ), 1), 0) as avg_duration_minutes
+        from consultation_session cs
+        left join (
+        <!--按会话id分组，查出每个会话最后一条消息的创建时间max_created_at-->
+        select session_id, max(created_at) as max_created_at
+        from consultation_message
+        group by session_id
+        ) m on m.session_id = cs.id
+    </select>
+
+    <!-- 每日会话数、参与用户数 -->
+    <select id="listConsultationTrend" resultType="com.nie.mentalpojo.vo.ConsultationTrendVO">
+        select date(started_at) as date,
+        count(*) as session_count,
+        count(distinct user_id) as user_count
+        from consultation_session
+        where started_at >= #{startDate}
+        and started_at &lt; date_add(#{endDate}, interval 1 day)
+        group by date(started_at)
+        order by date(started_at)
+    </select>
+
+    <!-- 每日新增用户 -->
+    <select id="countNewUsersByDay" resultType="com.nie.mentalpojo.vo.DailyCountVO">
+        select date(created_at) as date,
+        count(*) as total
+        from `user`
+        where user_type = 1
+        and created_at >= #{startDate}
+        and created_at &lt; date_add(#{endDate}, interval 1 day)
+        group by date(created_at)
+        order by date(created_at)
+    </select>
+
+    <!-- 每日记录日记的用户数 -->
+    <select id="countDiaryUsersByDay" resultType="com.nie.mentalpojo.vo.DailyCountVO">
+        select diary_date as date,
+        count(distinct user_id) as total
+        from emotion_diary
+        where diary_date between #{startDate} and #{endDate}
+        group by diary_date
+        order by diary_date
+    </select>
+
+    <!-- 每日发起咨询的用户数 -->
+    <select id="countConsultationUsersByDay" resultType="com.nie.mentalpojo.vo.DailyCountVO">
+        select date(started_at) as date,
+        count(distinct user_id) as total
+        from consultation_session
+        where started_at >= #{startDate}
+        and started_at &lt; date_add(#{endDate}, interval 1 day)
+        group by date(started_at)
+        order by date(started_at)
+    </select>
+
+    <!-- 每日活跃用户：当天有咨询或日记的用户，去重 -->
+    <select id="countActiveUsersByDay" resultType="com.nie.mentalpojo.vo.DailyCountVO">
+        select t.stat_date as date,
+        count(distinct t.user_id) as total
+        from (
+        select date(started_at) as stat_date, user_id
+        from consultation_session
+        where started_at >= #{startDate}
+        and started_at &lt; date_add(#{endDate}, interval 1 day)
+
+        union all
+
+        select diary_date as stat_date, user_id
+        from emotion_diary
+        where diary_date between #{startDate} and #{endDate}
+        ) t
+        group by t.stat_date
+        order by t.stat_date
+    </select>
+
+</mapper>
