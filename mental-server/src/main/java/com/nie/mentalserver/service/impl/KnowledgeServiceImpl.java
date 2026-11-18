@@ -75,8 +75,11 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     public PageResult<KnowledgeArticlePageVO> pageArticles(Integer userType, ArticlePageQueryDTO query){
 
         boolean admin = Integer.valueOf(2).equals(userType);
-        // 游客和普通用户只能看已发布
-        Integer status = admin ? query.getStatus() : 1;
+        // 游客和普通用户只能看已发布；管理员不传 status 时查询全部状态
+        Integer status = 1;
+        if (admin) {
+            status = query.getStatus();
+        }
 
         Integer page = query.getCurrentPage();
         page = page == null || page <= 0 ? 1 : page;
