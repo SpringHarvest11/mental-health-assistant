@@ -2,5 +2,45 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.nie.mentalserver.mapper.KnowledgeMapper">
-
+    <sql id="pageColumns">
+        a.id,
+        a.title,
+        a.cover_image,
+        a.category_id,
+        c.category_name,
+        coalesce(nullif(u.nickname, ''), u.username) as author_name,
+        coalesce(a.read_count, 0) as read_count,
+        a.status,
+        a.updated_at,
+        a.published_at
+    </sql>
+    <select id="page" resultType="com.nie.mentalpojo.vo.KnowledgeArticlePageVO">
+        select
+        <include refid="pageColumns"/>
+        from knowledge_article a
+        left join knowledge_category c on c.id = a.category_id
+        left join user u on u.id = a.author_id
+        <where>
+            <if test="title != null and title != ''">
+                and a.title like concat('%', #{title}, '%')
+            </if>
+            <if test="categoryId != null">
+                and a.category_id = #{categoryId}
+            </if>
+            <if test="status != null">
+                and a.status = #{status}
+            </if>
+        </where>
+        order by
+        <choose>
+            <when test="sortField == 'readCount'">a.read_count</when>
+            <when test="sortField == 'publishedAt'">a.published_at</when>
+            <otherwise>a.updated_at</otherwise>
+        </choose>
+        <choose>
+            <when test="sortDirection == 'asc'">asc</when>
+            <otherwise>desc</otherwise>
+        </choose>
+        , a.id desc
+    </select>
 </mapper>

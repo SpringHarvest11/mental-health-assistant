@@ -4,6 +4,7 @@ import com.nie.mental.common.result.Result;
 import com.nie.mental.common.result.ResultCode;
 import com.nie.mental.common.utils.CurrentHolder;
 import com.nie.mental.common.utils.JwtUtils;
+import com.nie.mentalserver.config.OptionalAuthPathRegistry;
 import com.nie.mentalserver.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -23,21 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-
-
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
-    private final JwtUtils jwtUtils;
-    private final ObjectMapper objectMapper;
-    private final TokenBlacklistService tokenBlacklistService;
-
-    private final AntPathMatcher antPathMatcher =new AntPathMatcher();
-
-    public JwtAuthenticationFilter(JwtUtils jwtUtils, ObjectMapper objectMapper, TokenBlacklistService tokenBlacklistService) {
-        this.jwtUtils = jwtUtils;
-        this.objectMapper = objectMapper;
-        this.tokenBlacklistService = tokenBlacklistService;
-    }
 
     private static final List<String> PUBLIC_PATHS = Arrays.asList(
             "/",
@@ -47,87 +34,116 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/swagger-ui/**"
     );
 
-    /**
-     * 返回 true ：跳过当前过滤器，不执行 doFilterInternal
-     * @param request current HTTP request
-     * @return
-     */
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request){
-        String uri = request.getRequestURI();
-        return PUBLIC_PATHS.stream().anyMatch(pattern -> antPathMatcher.match(pattern,uri));
+    private final JwtUtils jwtUtils;
+    private final ObjectMapper objectMapper;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final OptionalAuthPathRegistry optionalAuthPathRegistry;
+    private final AntPathMatcher antPathMatcher = new AntPathMatcher();
+
+    public JwtAuthenticationFilter(JwtUtils jwtUtils,
+                                   ObjectMapper objectMapper,
+                                   TokenBlacklistService tokenBlacklistService,
+                                   OptionalAuthPathRegistry optionalAuthPathRegistry) {
+        this.jwtUtils = jwtUtils;
+        this.objectMapper = objectMapper;
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.optionalAuthPathRegistry = optionalAuthPathRegistry;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return PUBLIC_PATHS.stream().anyMatch(pattern -> antPathMatcher.match(pattern, uri));
+    }
 
-        //获取请求头中的token
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+        // 当前接口是否允许匿名
+        boolean optional = optionalAuthPathRegistry.matches(request);
         String token = request.getHeader("token");
 
-        //如果 token 为空，放行，让 spring security 去拦截
-        if (token == null) {
-            writeError(response, "令牌为空");
+        // 没带 token
+        if (token == null || token.isBlank()) {
+            if (optional) {
+                // 可选登录：匿名直接放行，CurrentHolder 保持为空
+                filterChain.doFilter(request, response);
+            } else {
+                writeError(response, "令牌为空");
+            }
             return;
         }
 
+        Integer userId;
+        String username;
+        Integer roleType;
+
+        // 只把「解析 token」放在 try 里，不把 filterChain.doFilter 放进来
         try {
-            //解析 token
             Claims claims = jwtUtils.parseToken(token);
 
-            //从 claims 对象中获取用户信息
-            Integer userId = Integer.valueOf(claims.get("id").toString());
-            String username = claims.get("username", String.class);
-            Integer roleType = claims.get("userType", Integer.class);
+            if (claims.get("id") == null || claims.get("userType") == null) {
+                throw new JwtException("令牌中必要字段为空");
+            }
+
+            userId = Integer.valueOf(claims.get("id").toString());
+            username = claims.get("username", String.class);
+            roleType = claims.get("userType", Integer.class);
 
             String jti = claims.getId();
             if (tokenBlacklistService.isBlacklisted(jti)) {
-                writeError(response, "登录状态已失效，请重新登录");
+                handleFailure(request, response, filterChain, "登录状态已失效，请重新登录", optional);
                 return;
             }
+        } catch (JwtException e) {
+            // 过期、签名错误、格式非法
+            handleFailure(request, response, filterChain, e.getMessage(), optional);
+            return;
+        } catch (NullPointerException e) {
+            handleFailure(request, response, filterChain, "令牌中必要字段为空", optional);
+            return;
+        } catch (ClassCastException e) {
+            handleFailure(request, response, filterChain, "令牌字段类型不匹配", optional);
+            return;
+        } catch (Exception e) {
+            handleFailure(request, response, filterChain, "令牌解析发生未知错误", optional);
+            return;
+        }
 
-            //将当前登录用户id存入ThreadLocal中
-            CurrentHolder.setUser(userId,roleType);
-
-
-            //构建 Spring Security 的权限对象（ROLE_)
+        // 走到这里说明 token 有效，设置身份
+        CurrentHolder.setUser(userId, roleType);
+        try {
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                     new SimpleGrantedAuthority("ROLE_" + roleType)
             );
-
-            //组装 Security 的认证对象
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, null, authorities);
-
-            //把认证信息放入安全上下文
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-
-            //放行
+            SecurityContextHolder.getContext().setAuthentication(
+                    new UsernamePasswordAuthenticationToken(username, null, authorities)
+            );
             filterChain.doFilter(request, response);
-
-        } catch (JwtException e) {
-            // JwtUtils 抛出来的：过期、签名错误、格式非法
-            writeError(response, e.getMessage());
-            return;
-        } catch (NullPointerException e) {
-            writeError(response, "令牌中必要字段为空");
-            return;
-        } catch (ClassCastException e) {
-            writeError(response, "令牌字段类型不匹配");
-            return;
-        } catch (Exception e) {
-            // 最后兜底，防止其它未知异常逃逸
-            writeError(response, "令牌解析发生未知错误");
-            return;
-        }finally {
-            //删除ThreadLocal中的数据
+        } finally {
             CurrentHolder.remove();
         }
     }
 
     /**
-     * 输出统一错误 JSON
+     * 可选登录路径：token 无效时按匿名继续；必须登录路径：返回 401
      */
+    private void handleFailure(HttpServletRequest request,
+                               HttpServletResponse response,
+                               FilterChain filterChain,
+                               String message,
+                               boolean optional) throws ServletException, IOException {
+        if (optional) {
+            filterChain.doFilter(request, response);
+        } else {
+            writeError(response, message);
+        }
+    }
+
     private void writeError(HttpServletResponse response, String msg) throws IOException {
-        // 项目约定 HTTP 状态统一为 200，鉴权失败通过 body 中的 code=401 表达
         response.setContentType("application/json;charset=utf-8");
         Result<Void> result = Result.error(ResultCode.UNAUTHORIZED.getCode(), msg, null);
         objectMapper.writeValue(response.getWriter(), result);

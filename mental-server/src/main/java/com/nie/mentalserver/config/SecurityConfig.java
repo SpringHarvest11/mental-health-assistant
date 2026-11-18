@@ -33,7 +33,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtUtils jwtUtils,
                                                    ObjectMapper objectMapper,
-                                                   TokenBlacklistService tokenBlacklistService) throws Exception {
+                                                   TokenBlacklistService tokenBlacklistService,
+                                                   OptionalAuthPathRegistry optionalAuthPathRegistry) throws Exception {
         http
                 // 禁用CSRF保护 （API服务通常不需要）
                 .csrf(AbstractHttpConfigurer::disable)
@@ -45,11 +46,14 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         // 公开的路径，无需登录即可访问
                         .requestMatchers(PUBLIC_PATHS).permitAll()
+                        // 与过滤器共用同一份注解路径，避免两处硬编码
+                        .requestMatchers(optionalAuthPathRegistry::matches).permitAll()
                         // 其他请求都需要认证
                         .anyRequest().authenticated()
                 )
-        // 添加JWT认证过滤器
-        .addFilterBefore(new JwtAuthenticationFilter(jwtUtils, objectMapper, tokenBlacklistService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(
+                        new JwtAuthenticationFilter(jwtUtils, objectMapper, tokenBlacklistService, optionalAuthPathRegistry),
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }
