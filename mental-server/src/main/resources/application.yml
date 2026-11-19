@@ -65,3 +65,18 @@ jwt:
   secret: ${nie.jwt.secret}
   expiration: ${nie.jwt.expiration}
 
+aliyun:
+  oss:
+    endpoint: ${nie.oss.endpoint}
+    access-key-id: ${nie.oss.access-key-id}
+    access-key-secret: ${nie.oss.access-key-secret}
+    bucket-name: ${nie.oss.bucket-name}
+    # CDN 加速域名，如 https://cdn.example.com；为空时回退到后端 /upload/** 302
+    cdn-domain: ${nie.oss.cdn-domain:}
+    # 直传凭证有效期（秒）
+    policy-expire-seconds: 300
+    # 单文件上限（字节），与前端 5MB 保持一致
+    max-size: 5242880
+    # 无 CDN 时签名 GET 链接的有效期（秒）
+    signed-get-expire-seconds: 600
+

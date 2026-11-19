@@ -25,6 +25,8 @@ public class SecurityConfig {
             "/",
             "/api/user/login",
             "/api/user/add",
+            // 图片入口，<img> 无法携带 token
+            "/upload/**",
             "/v3/api-docs",
             "/swagger-ui/**"
     };
