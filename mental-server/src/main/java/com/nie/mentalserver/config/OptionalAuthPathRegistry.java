@@ -12,6 +12,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class OptionalAuthPathRegistry implements SmartInitializingSingleton {
@@ -20,7 +21,7 @@ public class OptionalAuthPathRegistry implements SmartInitializingSingleton {
     private final AntPathMatcher matcher = new AntPathMatcher();
 
     // 启动完成后一次性赋值，volatile 保证请求线程可见
-    private volatile List<String> patterns = List.of();
+    private volatile List<OptionalEndpoint> endpoints = List.of();
 
     public OptionalAuthPathRegistry(ObjectProvider<RequestMappingHandlerMapping> handlerMappingProvider) {
         this.handlerMappingProvider = handlerMappingProvider;
@@ -35,25 +36,42 @@ public class OptionalAuthPathRegistry implements SmartInitializingSingleton {
         if (mapping == null) {
             return;
         }
-        Set<String> paths = new LinkedHashSet<>();
+        Set<OptionalEndpoint> result = new LinkedHashSet<>();
         mapping.getHandlerMethods().forEach((info, handler) -> {
             boolean optional = handler.hasMethodAnnotation(OptionalAuth.class)
                     || handler.getBeanType().isAnnotationPresent(OptionalAuth.class);
             if (optional) {
                 // 这里拿到的已经是「类上 @RequestMapping + 方法上 @GetMapping」合并后的完整路径
-                paths.addAll(info.getPatternValues());
+                Set<String> methods = info.getMethodsCondition().getMethods().stream()
+                        .map(Enum::name)
+                        .collect(Collectors.toSet());
+                for (String pattern : info.getPatternValues()) {
+                    if (methods.isEmpty()) {
+                        // 未限定请求方法，所有方法都允许匿名
+                        result.add(new OptionalEndpoint(null, pattern));
+                    } else {
+                        for (String method : methods) {
+                            result.add(new OptionalEndpoint(method, pattern));
+                        }
+                    }
+                }
             }
         });
-        this.patterns = List.copyOf(paths);
+        this.endpoints = List.copyOf(result);
     }
 
     public boolean matches(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        for (String pattern : patterns) {
-            if (matcher.match(pattern, uri)) {
+        String method = request.getMethod();
+        for (OptionalEndpoint endpoint : endpoints) {
+            if ((endpoint.method() == null || endpoint.method().equals(method))
+                    && matcher.match(endpoint.pattern(), uri)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private record OptionalEndpoint(String method, String pattern) {
     }
 }

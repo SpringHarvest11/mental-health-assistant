@@ -43,4 +43,26 @@
         </choose>
         , a.id desc
     </select>
+
+    <select id="detail" resultType="com.nie.mentalpojo.vo.KnowledgeArticleDetailVO">
+        select
+            a.id,
+            a.title,
+            a.summary,
+            a.content,
+            a.cover_image,
+            a.category_id,
+            c.category_name,
+            coalesce(nullif(u.nickname, ''), u.username) as author_name,
+            coalesce(a.read_count, 0) as read_count,
+            a.status,
+            a.tags,
+            a.created_at,
+            a.updated_at,
+            a.published_at
+        from knowledge_article a
+        left join knowledge_category c on c.id = a.category_id
+        left join user u on u.id = a.author_id
+        where a.id = #{id}
+    </select>
 </mapper>
