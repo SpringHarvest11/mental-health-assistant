@@ -1,9 +1,10 @@
-package com.nie.mentalserver.service;
+package com.nie.mentalserver.task;
 
 import com.nie.mentalpojo.entity.EmotionDiary;
 import com.nie.mentalpojo.vo.SessionEmotionVO;
 import com.nie.mentalserver.mapper.AiAnalysisTaskMapper;
 import com.nie.mentalserver.mapper.EmotionDiaryMapper;
+import com.nie.mentalserver.service.EmotionDiaryAnalysisWriteBackService;
 import com.nie.mentalserver.util.EmotionAnalysisNormalizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -21,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Component
-public class EmotionDiaryAnalysisWorker {
+public class EmotionDiaryAnalysisWorkerTask {
 
     private static final int BATCH_SIZE = 10;
     private static final int STALE_MINUTES = 10;
@@ -38,7 +39,7 @@ public class EmotionDiaryAnalysisWorker {
     // 防止上一次轮询还没派发完，下一次又进来
     private final AtomicBoolean polling = new AtomicBoolean(false);
 
-    public EmotionDiaryAnalysisWorker(
+    public EmotionDiaryAnalysisWorkerTask(
             AiAnalysisTaskMapper aiAnalysisTaskMapper,
             EmotionDiaryMapper emotionDiaryMapper,
             EmotionDiaryAnalysisWriteBackService writeBackService,
@@ -151,3 +152,4 @@ public class EmotionDiaryAnalysisWorker {
         return value.length() <= max ? value : value.substring(0, max) + "…";
     }
 }
+
